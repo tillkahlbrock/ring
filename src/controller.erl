@@ -1,6 +1,5 @@
 -module(controller).
--export([start/2, wait_for_command/1, rpc/1]).
--record(state, {successor}).
+-export([start/2, rpc/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API
@@ -9,13 +8,13 @@ start(Mod, Size) ->
   MasterPid = build_ring(Mod, Size, self()),
   register(master, MasterPid).
 
-wait_for_command(State = #state{successor = Successor}) ->
+wait_for_command(Mod, Successor) ->
   receive
     kill -> io:format("got kill~n",[]), Successor ! kill;
     Command -> 
-      io:format("he said: ~p~n", [Command]),
+      Mod:handle(Command),
       Successor ! Command,
-      wait_for_command(State)
+      wait_for_command(Mod, Successor)
   end.
     
 rpc(Command) -> master ! Command.
@@ -26,7 +25,7 @@ rpc(Command) -> master ! Command.
 build_ring(_Mod, 0, FirstInRing) -> FirstInRing;
 
 build_ring(Mod, Size, Successor) ->
-  NewPredecessor = spawn(fun() -> Mod:init(#state{successor=Successor}) end),
+  NewPredecessor = spawn(fun() -> wait_for_command(Mod, Successor) end),
   build_ring(Mod, Size-1, NewPredecessor).
 
 
