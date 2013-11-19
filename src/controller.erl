@@ -1,21 +1,25 @@
 -module(controller).
--export([start/2, wait_for_command/1]).
+-export([start/2, wait_for_command/1, rpc/1]).
 -record(state, {successor}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% API
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 start(Mod, Size) ->
-  build_ring(Mod, Size, self()).
+  MasterPid = build_ring(Mod, Size, self()),
+  register(master, MasterPid).
 
 wait_for_command(State = #state{successor = Successor}) ->
   receive
     kill -> io:format("got kill~n",[]), Successor ! kill;
     Command -> 
+      io:format("he said: ~p~n", [Command]),
       Successor ! Command,
       wait_for_command(State)
   end.
     
+rpc(Command) -> master ! Command.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Helper
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
